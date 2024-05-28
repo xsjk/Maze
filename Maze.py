@@ -31,8 +31,6 @@ def generate_dfs_maze(width, height, start, end, app: "MazeSolverApp | None" = N
         maze[current_cell[1]][current_cell[0]] = State.EMPTY
         if app and not app.stop_animation:
             app.renderer.draw(current_cell, MazeSolverApp.OPEN_COLOR)
-            app.root.update()
-            time.sleep(0.05)
 
         neighbors = []
         for dx, dy in [(0, -2), (0, 2), (-2, 0), (2, 0)]:
@@ -46,23 +44,14 @@ def generate_dfs_maze(width, height, start, end, app: "MazeSolverApp | None" = N
             wall_x, wall_y = (current_cell[0] + nx) // 2, (current_cell[1] + ny) // 2
             maze[wall_y][wall_x] = State.EMPTY
             if app and not app.stop_animation:
-                app.renderer.draw((wall_x, wall_y), MazeSolverApp.OPEN_COLOR)
-                app.root.update()
-                time.sleep(0.05)
+                app.draw((wall_x, wall_y), MazeSolverApp.OPEN_COLOR)
             stack.append(next_cell)
         else:
             stack.pop()
             if app and not app.stop_animation:
-                app.renderer.draw(current_cell, MazeSolverApp.BACKTRACK_COLOR)
-                app.root.update()
-                time.sleep(0.05)
+                app.draw(current_cell, MazeSolverApp.BACKTRACK_COLOR)
                 if stack:
-                    app.renderer.draw(((current_cell[0] + stack[-1][0]) // 2, (current_cell[1] + stack[-1][1]) // 2), MazeSolverApp.BACKTRACK_COLOR)  # 将路径中的墙也涂成蓝色
-                    app.root.update()
-                    time.sleep(0.05)
-
-        if app and app.stop_animation:
-            return maze
+                    app.draw(((current_cell[0] + stack[-1][0]) // 2, (current_cell[1] + stack[-1][1]) // 2), MazeSolverApp.BACKTRACK_COLOR)  # 将路径中的墙也涂成蓝色
 
     # Set entrance and exit
     maze[start[1]][start[0]] = State.EMPTY
@@ -119,12 +108,7 @@ def generate_kruskal_maze(width, height, start, end, app: "MazeSolverApp | None"
             if app and not app.stop_animation:
                 app.renderer.draw((x1, y1), MazeSolverApp.OPEN_COLOR)
                 app.renderer.draw((x2, y2), MazeSolverApp.OPEN_COLOR)
-                app.renderer.draw((wx, wy), MazeSolverApp.OPEN_COLOR)
-                app.root.update()
-                time.sleep(0.05)
-
-        if app and app.stop_animation:
-            return maze
+                app.draw((wx, wy), MazeSolverApp.OPEN_COLOR)
 
     # Set entrance and exit
     maze[start[1]][start[0]] = State.EMPTY
@@ -141,9 +125,7 @@ def bfs_shortest_path(maze, start, end, app: "MazeSolverApp | None" = None):
     while queue:
         (x, y), path = queue.popleft()
         if app and not app.stop_animation:
-            app.renderer.draw((x, y), MazeSolverApp.EXPLORE_COLOR)
-            app.root.update()
-            time.sleep(0.05)
+            app.draw((x, y), MazeSolverApp.EXPLORE_COLOR)
 
         if app and app.stop_animation:
             return None
@@ -211,6 +193,7 @@ class MazeSolverApp:
     END_COLOR = "grey"
     EXPLORE_COLOR = "yellow"
     BACKTRACK_COLOR = "blue"
+    ANIMATION_SPEED = 2**4
 
     def __init__(self, root):
         self.root = root
@@ -264,7 +247,10 @@ class MazeSolverApp:
         # Animation Mode
         self.animate_var = tk.IntVar()
         self.animate_checkbox = tk.Checkbutton(algorithm_frame, text="动画模式", variable=self.animate_var, command=self.on_checkbox_toggle)
-        self.animate_checkbox.grid(row=2, column=0, padx=10, pady=5, columnspan=2)
+        self.animate_checkbox.grid(row=2, column=0, padx=10, pady=5)
+        self.animation_speed_var = tk.IntVar(value=4)
+        self.animation_speed_scale = tk.Scale(algorithm_frame, from_=1, to=10, showvalue=False, orient=tk.HORIZONTAL, label="动画速度", variable=self.animation_speed_var, command=lambda x: setattr(self, "ANIMATION_SPEED", 2**int(x)))
+        self.animation_speed_scale.grid(row=2, column=1, padx=10, pady=5)
 
         # Import/Export
         import_export_frame = tk.LabelFrame(controls_frame, text="导入/导出", padx=10, pady=10)
@@ -357,6 +343,7 @@ class MazeSolverApp:
 
         # Choose maze generation algorithm
         algorithm = self.generate_algorithm_var.get()
+        self.resize_canvas()
         if algorithm == "DFS":
             if self.animate_var.get():
                 self.stop_animation = False
@@ -371,7 +358,6 @@ class MazeSolverApp:
                 self.maze = generate_kruskal_maze(self.width, self.height, self.start, self.end)
 
         self.path = []
-        self.resize_canvas()
         self.draw_maze()
 
     def solve_maze(self):
@@ -472,6 +458,14 @@ class MazeSolverApp:
             except Exception as e:
                 messagebox.showerror("导入错误", f"导入迷宫时发生错误: {e}")
 
+    def draw(self, pos, color, update=True, delay=None):
+        self.renderer.draw(pos, color)
+        if update:
+            self.root.update()
+        if delay is None:
+            time.sleep(1 / self.ANIMATION_SPEED)
+        else:
+            time.sleep(delay)
 
 if __name__ == "__main__":
     root = tk.Tk()
