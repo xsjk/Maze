@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox, filedialog
 from abc import ABC, abstractmethod
+from copy import deepcopy
 import time
 from enum import Enum
 import csv
@@ -13,13 +14,13 @@ class State(Enum):
     WALL = 1
 
 def generate_dfs_maze(width, height, start, end, app: "MazeSolverApp | None" = None):
-    maze = [[State.WALL for _ in range(width)] for _ in range(height)]
+    maze = [[State.WALL] * width for _ in range(height)]
     stack = [start]
 
     if app is not None:
         # fill the maze black
-        for y in range(0, height):
-            for x in range(0, width):
+        for y in range(height):
+            for x in range(width):
                 app.renderer.draw((x, y), MazeSolverApp.WALL_COLOR)
 
     def is_within_bounds(x, y):
@@ -51,6 +52,14 @@ def generate_dfs_maze(width, height, start, end, app: "MazeSolverApp | None" = N
             stack.append(next_cell)
         else:
             stack.pop()
+            if app and not app.stop_animation:
+                app.renderer.draw(current_cell, MazeSolverApp.BACKTRACK_COLOR)
+                app.root.update()
+                time.sleep(0.05)
+                if stack:
+                    app.renderer.draw(((current_cell[0] + stack[-1][0]) // 2, (current_cell[1] + stack[-1][1]) // 2), MazeSolverApp.BACKTRACK_COLOR)  # 将路径中的墙也涂成蓝色
+                    app.root.update()
+                    time.sleep(0.05)
 
         if app and app.stop_animation:
             return maze
@@ -59,6 +68,7 @@ def generate_dfs_maze(width, height, start, end, app: "MazeSolverApp | None" = N
     maze[start[1]][start[0]] = State.EMPTY
     maze[end[1]][end[0]] = State.EMPTY
     return maze
+
 
 
 def generate_kruskal_maze(width, height, start, end, app: "MazeSolverApp | None" = None):
@@ -200,6 +210,7 @@ class MazeSolverApp:
     START_COLOR = "grey"
     END_COLOR = "grey"
     EXPLORE_COLOR = "yellow"
+    BACKTRACK_COLOR = "blue"
 
     def __init__(self, root):
         self.root = root
@@ -371,9 +382,9 @@ class MazeSolverApp:
 
         if self.animate_var.get():
             self.stop_animation = False
-            self.path = bfs_shortest_path([row[:] for row in self.maze], self.start, self.end, self)
+            self.path = bfs_shortest_path(deepcopy(self.maze), self.start, self.end, self)
         else:
-            self.path = bfs_shortest_path([row[:] for row in self.maze], self.start, self.end)
+            self.path = bfs_shortest_path(deepcopy(self.maze), self.start, self.end)
 
         if self.path:
             self.draw_maze()
